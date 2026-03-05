@@ -49,7 +49,6 @@ struct udx_chunk_writer {
     size_t offset_capacity;         // Offset table capacity
 
     uint64_t current_chunk_index;   // Current chunk index
-    bool in_block;                  // Whether inside a data block
 };
 
 /**
@@ -148,51 +147,46 @@ void udx_chunk_writer_destroy(udx_chunk_writer *writer) {
     free(writer);
 }
 
-udx_chunk_address udx_chunk_writer_start_block(udx_chunk_writer *writer) {
-    if (writer == NULL) {
+udx_chunk_address udx_chunk_writer_add_block(udx_chunk_writer *writer,
+                                              const uint8_t *data,
+                                              size_t size) {
+    if (writer == NULL || data == NULL || size == 0) {
         return UDX_INVALID_ADDRESS;
     }
 
-    // If current chunk is full, save it first
+    // Flush if current offset would exceed uint16 range
     if (writer->buffer_size >= UDX_CHUNK_MAX_SIZE) {
         if (!chunk_writer_save_current(writer)) {
             return UDX_INVALID_ADDRESS;
         }
     }
 
-    writer->in_block = true;
-
-    // Return address: (chunk_index << 16) | offset
-    return udx_addr_make(writer->current_chunk_index, (uint16_t)writer->buffer_size);
-}
-
-bool udx_chunk_writer_add_data(udx_chunk_writer *writer,
-                               const uint8_t *data,
-                               size_t size) {
-    if (writer == NULL || data == NULL || !writer->in_block) {
-        return false;
+    // Expand buffer if needed (for blocks larger than default capacity)
+    size_t required = writer->buffer_size + size;
+    if (required > writer->buffer_capacity) {
+        uint8_t *new_buffer = (uint8_t *)realloc(writer->buffer, required);
+        if (new_buffer == NULL) {
+            return UDX_INVALID_ADDRESS;
+        }
+        writer->buffer = new_buffer;
+        writer->buffer_capacity = required;
     }
 
-    // Check if it would exceed chunk max size
-    if (writer->buffer_size + size > UDX_CHUNK_MAX_SIZE) {
-        // Data block too large to fit in a single chunk
-        // This is an error condition - data blocks must fit entirely in one chunk
-        return false;
-    }
+    // Record address before appending
+    udx_chunk_address address = udx_addr_make(writer->current_chunk_index,
+                                               (uint16_t)writer->buffer_size);
 
     // Append data
     memcpy(writer->buffer + writer->buffer_size, data, size);
     writer->buffer_size += size;
 
-    return true;
+    return address;
 }
 
 uint64_t udx_chunk_writer_finish(udx_chunk_writer *writer) {
     if (writer == NULL) {
         return 0;
     }
-
-    writer->in_block = false;
 
     // Save the last chunk
     if (writer->buffer_size > 0) {
@@ -317,8 +311,7 @@ static bool chunk_reader_load_chunk(udx_chunk_reader *reader, uint64_t chunk_ind
     }
 
     // Sanity check: reject obviously invalid sizes
-    if (uncompressed_size == 0 || uncompressed_size > UDX_CHUNK_MAX_SIZE ||
-        compressed_size == 0 || compressed_size > compressBound(UDX_CHUNK_MAX_SIZE)) {
+    if (uncompressed_size == 0 || compressed_size == 0) {
         return false;
     }
 

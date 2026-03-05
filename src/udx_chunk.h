@@ -38,27 +38,20 @@ udx_chunk_writer *udx_chunk_writer_create(FILE *file);
 void udx_chunk_writer_destroy(udx_chunk_writer *writer);
 
 /**
- * Start a new data block
- * @param writer Writer pointer
- * @return Data block address (encoded address)
- *
- * @note If the current chunk has insufficient space, it will be flushed
- *       and a new chunk will be created automatically
- */
-udx_chunk_address udx_chunk_writer_start_block(udx_chunk_writer *writer);
-
-/**
- * Append data to the current data block
+ * Add a data block to the chunk writer
  * @param writer Writer pointer
  * @param data Data pointer
  * @param size Data size
- * @return true on success, false on failure
+ * @return Data block address (encoded address), or UDX_INVALID_ADDRESS on failure
  *
- * @note Must call udx_chunk_writer_start_block first
+ * @note If the current chunk has insufficient space, it will be flushed
+ *       and the block will be written to a new chunk.
+ *       Blocks larger than UDX_CHUNK_MAX_SIZE are allowed and will
+ *       occupy a dedicated chunk.
  */
-bool udx_chunk_writer_add_data(udx_chunk_writer *writer,
-                               const uint8_t *data,
-                               size_t size);
+udx_chunk_address udx_chunk_writer_add_block(udx_chunk_writer *writer,
+                                              const uint8_t *data,
+                                              size_t size);
 
 /**
  * Finish writing and write the chunk offset table
@@ -90,7 +83,7 @@ void udx_chunk_reader_destroy(udx_chunk_reader *reader);
 /**
  * Read the data block at the specified address
  * @param reader Reader pointer
- * @param address Data block address (from udx_chunk_writer_start_block)
+ * @param address Data block address (from udx_chunk_writer_add_block)
  * @param data_size Exact size of the data block
  * @return Data pointer (caller must free), or NULL on failure
  */

@@ -685,9 +685,8 @@ udx_error_t udx_db_builder_add_entry(udx_db_builder *builder,
         return UDX_ERR_INVALID_PARAM;
     }
 
-    udx_chunk_address address = udx_chunk_writer_start_block(builder->chunk_writer);
+    udx_chunk_address address = udx_chunk_writer_add_block(builder->chunk_writer, data, data_size);
     if (address == UDX_INVALID_ADDRESS) return UDX_ERR_CHUNK;
-    if (!udx_chunk_writer_add_data(builder->chunk_writer, data, data_size)) return UDX_ERR_CHUNK;
 
     return udx_words_add(builder->words, word, address, (uint32_t)data_size) ? UDX_OK : UDX_ERR_WORDS;
 }
