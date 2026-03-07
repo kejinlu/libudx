@@ -12,7 +12,6 @@
 #include <zlib.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 // ============================================================
 // Opaque Struct Definitions
@@ -83,6 +82,8 @@ static inline bool ud_index_node_is_internal(const udx_index_node *node) {
  * Only reads the compressed node data, does not read next_leaf
  */
 static udx_index_node *read_index_node(udx_db *db, uint64_t offset) {
+    if (offset == UDX_INVALID_NODE_OFFSET) return NULL;
+    
     if (udx_fseek(db->reader->file, offset, SEEK_SET) != 0) return NULL;
 
     uint32_t uncompressed_size, compressed_size;
@@ -201,7 +202,7 @@ static inline ud_index_leaf_node_info parse_leaf_node(const udx_index_node *node
 static uint64_t find_child_offset(const udx_index_node *node, const char *key) {
     ud_index_internal_node_info info = parse_internal_node(node);
 
-    assert(info.child_count > 0 && "Internal node must have at least one child");
+    if (info.child_count == 0) return UDX_INVALID_NODE_OFFSET;  // Invalid/corrupted node
 
     if (info.child_count == 1) return info.children[0];
 

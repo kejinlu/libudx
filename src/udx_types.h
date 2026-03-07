@@ -61,7 +61,10 @@ typedef enum {
 typedef uint64_t udx_chunk_address;
 
 // Invalid address sentinel (used to indicate errors)
-#define UDX_INVALID_ADDRESS  UINT64_MAX
+#define UDX_INVALID_ADDRESS      UINT64_MAX
+
+// Invalid B+ tree node offset (offset 0 is reserved for file header)
+#define UDX_INVALID_NODE_OFFSET  0
 
 // ============================================================
 // Item Types
@@ -99,6 +102,7 @@ static inline void udx_index_entry_item_array_init(udx_index_entry_item_array *a
 }
 
 static inline bool udx_index_entry_item_array_push(udx_index_entry_item_array *arr, udx_index_entry_item val) {
+    if (arr == NULL) return false;
     if (arr->size >= arr->capacity) {
         size_t new_cap = arr->capacity == 0 ? 8 : arr->capacity * 2;
         udx_index_entry_item *new_data = (udx_index_entry_item *)realloc(arr->data, new_cap * sizeof(udx_index_entry_item));
@@ -111,6 +115,7 @@ static inline bool udx_index_entry_item_array_push(udx_index_entry_item_array *a
 }
 
 static inline bool udx_index_entry_item_array_reserve(udx_index_entry_item_array *arr, size_t new_cap) {
+    if (arr == NULL) return false;
     if (new_cap <= arr->capacity) return true;
     udx_index_entry_item *new_data = (udx_index_entry_item *)realloc(arr->data, new_cap * sizeof(udx_index_entry_item));
     if (new_data == NULL) return false;
@@ -120,6 +125,7 @@ static inline bool udx_index_entry_item_array_reserve(udx_index_entry_item_array
 }
 
 static inline void udx_index_entry_item_array_free(udx_index_entry_item_array *arr) {
+    if (arr == NULL) return;
     free(arr->data);
     arr->data = NULL;
     arr->size = 0;
@@ -140,6 +146,7 @@ static inline void udx_db_entry_item_array_init(udx_db_entry_item_array *arr) {
 }
 
 static inline bool udx_db_entry_item_array_push(udx_db_entry_item_array *arr, udx_db_entry_item val) {
+    if (arr == NULL) return false;
     if (arr->size >= arr->capacity) {
         size_t new_cap = arr->capacity == 0 ? 8 : arr->capacity * 2;
         udx_db_entry_item *new_data = (udx_db_entry_item *)realloc(arr->data, new_cap * sizeof(udx_db_entry_item));
@@ -152,6 +159,7 @@ static inline bool udx_db_entry_item_array_push(udx_db_entry_item_array *arr, ud
 }
 
 static inline bool udx_db_entry_item_array_reserve(udx_db_entry_item_array *arr, size_t new_cap) {
+    if (arr == NULL) return false;
     if (new_cap <= arr->capacity) return true;
     udx_db_entry_item *new_data = (udx_db_entry_item *)realloc(arr->data, new_cap * sizeof(udx_db_entry_item));
     if (new_data == NULL) return false;
@@ -161,6 +169,7 @@ static inline bool udx_db_entry_item_array_reserve(udx_db_entry_item_array *arr,
 }
 
 static inline void udx_db_entry_item_array_free(udx_db_entry_item_array *arr) {
+    if (arr == NULL) return;
     free(arr->data);
     arr->data = NULL;
     arr->size = 0;
@@ -201,6 +210,7 @@ static inline void udx_index_entry_array_init(udx_index_entry_array *arr) {
 }
 
 static inline void udx_index_entry_array_free(udx_index_entry_array *arr) {
+    if (arr == NULL) return;
     free(arr->data);
     arr->data = NULL;
     arr->size = 0;
@@ -208,6 +218,7 @@ static inline void udx_index_entry_array_free(udx_index_entry_array *arr) {
 }
 
 static inline bool udx_index_entry_array_reserve(udx_index_entry_array *arr, size_t new_cap) {
+    if (arr == NULL) return false;
     if (new_cap <= arr->capacity) return true;
     udx_index_entry *new_data = (udx_index_entry *)realloc(arr->data, new_cap * sizeof(udx_index_entry));
     if (new_data == NULL) return false;
@@ -217,6 +228,7 @@ static inline bool udx_index_entry_array_reserve(udx_index_entry_array *arr, siz
 }
 
 static inline bool udx_index_entry_array_push(udx_index_entry_array *arr, udx_index_entry val) {
+    if (arr == NULL) return false;
     if (arr->size >= arr->capacity) {
         size_t new_cap = arr->capacity == 0 ? 8 : arr->capacity * 2;
         udx_index_entry *new_data = (udx_index_entry *)realloc(arr->data, new_cap * sizeof(udx_index_entry));
@@ -265,6 +277,7 @@ static inline void udx_uint64_array_init(udx_uint64_array *arr) {
 }
 
 static inline bool udx_uint64_array_push(udx_uint64_array *arr, uint64_t val) {
+    if (arr == NULL) return false;
     if (arr->size >= arr->capacity) {
         size_t new_cap = arr->capacity == 0 ? 8 : arr->capacity * 2;
         uint64_t *new_data = (uint64_t *)realloc(arr->data, new_cap * sizeof(uint64_t));
@@ -277,6 +290,7 @@ static inline bool udx_uint64_array_push(udx_uint64_array *arr, uint64_t val) {
 }
 
 static inline void udx_uint64_array_free(udx_uint64_array *arr) {
+    if (arr == NULL) return;
     free(arr->data);
     arr->data = NULL;
     arr->size = 0;
@@ -297,6 +311,7 @@ static inline void udx_string_array_init(udx_string_array *arr) {
 }
 
 static inline bool udx_string_array_push(udx_string_array *arr, char *val) {
+    if (arr == NULL) return false;
     if (arr->size >= arr->capacity) {
         size_t new_cap = arr->capacity == 0 ? 8 : arr->capacity * 2;
         char **new_data = (char **)realloc(arr->data, new_cap * sizeof(char *));
@@ -309,6 +324,7 @@ static inline bool udx_string_array_push(udx_string_array *arr, char *val) {
 }
 
 static inline void udx_string_array_free(udx_string_array *arr) {
+    if (arr == NULL) return;
     free(arr->data);
     arr->data = NULL;
     arr->size = 0;

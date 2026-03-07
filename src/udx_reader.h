@@ -165,6 +165,12 @@ void udx_db_iter_destroy(udx_db_iter *iter);
  * Get the next entry
  * @param iter Iterator pointer
  * @return Db entry pointer, or NULL when traversal is complete
+ *
+ * @note The returned pointer points to internal memory managed by the iterator.
+ *       Do NOT free the returned entry or its contents directly.
+ *       The data is valid only until the next call to udx_db_iter_next()
+ *       or until udx_db_iter_destroy() is called.
+ *       If you need to persist the data, make a deep copy before the next iteration.
  */
 const udx_db_entry *udx_db_iter_next(udx_db_iter *iter);
 
