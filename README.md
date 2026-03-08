@@ -7,8 +7,9 @@
 **libudx** — A fast, minimal C library for reading and writing **[UDX (Universal Dictionary eXchange)](docs/format.md)** file.
 
 ```mermaid
-graph TB
+graph LR
       subgraph Writer["writer"]
+          direction LR
           B1[db1_builder]
           B2[db2_builder]
       end
