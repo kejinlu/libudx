@@ -22,7 +22,7 @@ struct udx_reader {
     udx_header header;
     uint64_t *db_offsets;
     char **db_names;
-    uint32_t db_count;
+    uint16_t db_count;
 };
 
 struct udx_db {
@@ -563,7 +563,7 @@ udx_db *udx_db_open(udx_reader *reader, const char *name) {
     }
 
     // Find by name - search in section_names array
-    for (uint32_t i = 0; i < reader->db_count; i++) {
+    for (uint16_t i = 0; i < reader->db_count; i++) {
         if (strcmp(reader->db_names[i], name) == 0) {
             return load_db_by_offset(reader, reader->db_offsets[i], name);
         }
@@ -951,17 +951,12 @@ udx_reader *udx_reader_open(const char *path) {
         return NULL;
     }
 
-    // Read count
-    uint32_t count;
-    if (fread(&count, sizeof(uint32_t), 1, reader->file) != 1) {
-        fclose(reader->file);
-        free(reader);
-        return NULL;
-    }
+    // Get db_count from header
+    uint16_t db_count = reader->header.db_count;
 
     // Allocate arrays
-    uint64_t *offsets = (uint64_t *)malloc(sizeof(uint64_t) * count);
-    char **names = (char **)malloc(sizeof(char *) * count);
+    uint64_t *offsets = (uint64_t *)malloc(sizeof(uint64_t) * db_count);
+    char **names = (char **)malloc(sizeof(char *) * db_count);
     if (offsets == NULL || names == NULL) {
         free(offsets);
         free(names);
@@ -972,7 +967,7 @@ udx_reader *udx_reader_open(const char *path) {
 
     // Read entries: (offset, name) for each db
     bool success = true;
-    for (uint32_t i = 0; i < count; i++) {
+    for (uint16_t i = 0; i < db_count; i++) {
         // Read offset
         if (fread(&offsets[i], sizeof(uint64_t), 1, reader->file) != 1) {
             success = false;
@@ -999,7 +994,7 @@ udx_reader *udx_reader_open(const char *path) {
     }
 
     if (!success) {
-        for (uint32_t i = 0; i < count; i++) {
+        for (uint16_t i = 0; i < db_count; i++) {
             if (names[i] != NULL) free(names[i]);
         }
         free(names);
@@ -1011,7 +1006,7 @@ udx_reader *udx_reader_open(const char *path) {
 
     reader->db_offsets = offsets;
     reader->db_names = names;
-    reader->db_count = count;
+    reader->db_count = db_count;
 
     return reader;
 }
@@ -1023,7 +1018,7 @@ void udx_reader_close(udx_reader *reader) {
     if (reader == NULL) return;
 
     // Free db table (names and offsets)
-    for (uint32_t i = 0; i < reader->db_count; i++) {
+    for (uint16_t i = 0; i < reader->db_count; i++) {
         free(reader->db_names[i]);
     }
     free(reader->db_names);

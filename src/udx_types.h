@@ -354,13 +354,16 @@ typedef struct {
     char magic[4];                    // "UDX\0"
     uint8_t version_major;            // Major version number
     uint8_t version_minor;            // Minor version number
+    uint16_t db_count;                // number of databases
     uint64_t db_table_offset;         // db offsets table
 } udx_header;
 
-// Serialized size: magic(4) + version_major(1) + version_minor(1) + db_table_offset(8) = 14 bytes
-#define UDX_HEADER_SERIALIZED_SIZE              14
-// Serialized offset of db_table_offset field: magic(4) + version(1+1) = 6
-#define UDX_HEADER_DB_TABLE_OFFSET_POS          6
+// Serialized size: magic(4) + version_major(1) + version_minor(1) + db_count(2) + db_table_offset(8) = 16 bytes
+#define UDX_HEADER_SERIALIZED_SIZE              16
+// Serialized offset of db_count field: magic(4) + version(1+1) = 6
+#define UDX_HEADER_DB_COUNT_POS                  6
+// Serialized offset of db_table_offset field: magic(4) + version(1+1) + db_count(2) = 8
+#define UDX_HEADER_DB_TABLE_OFFSET_POS          8
 
 typedef struct {
     uint64_t chunk_table_offset;      // Chunk table offset
@@ -389,6 +392,7 @@ static inline void udx_header_serialize(const udx_header *h, uint8_t buf[UDX_HEA
     memcpy(p, h->magic, 4);             p += 4;
     *p++ = h->version_major;
     *p++ = h->version_minor;
+    memcpy(p, &h->db_count, 2);        p += 2;
     memcpy(p, &h->db_table_offset, 8);  p += 8;
 }
 
@@ -397,6 +401,7 @@ static inline void udx_header_deserialize(const uint8_t buf[UDX_HEADER_SERIALIZE
     memcpy(h->magic, p, 4);             p += 4;
     h->version_major = *p++;
     h->version_minor = *p++;
+    memcpy(&h->db_count, p, 2);        p += 2;
     memcpy(&h->db_table_offset, p, 8);  p += 8;
 }
 

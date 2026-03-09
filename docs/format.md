@@ -32,7 +32,9 @@ UDX (Universal Dictionary eXchange) is a binary file format for storing dictiona
 - **Multiple databases** in a single file
 - **Large file support** with 64-bit file offsets
 
-All multi-byte integers are stored in **little-endian** byte order.
+All multi-byte integers are stored in **native byte order**.
+
+**Note:** Since almost all modern hardware platforms use little-endian byte order, this library is designed and tested for little-endian systems only. Big-endian systems are not currently supported.
 
 ---
 
@@ -42,7 +44,7 @@ A UDX file is organized as follows:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Main Header (14 bytes)                                  │
+│ Main Header (16 bytes)                                  │
 ├─────────────────────────────────────────────────────────┤
 │ Dictionary Database 1                                   │
 │  ├─ Database Header (44 bytes)                          │
@@ -59,8 +61,7 @@ A UDX file is organized as follows:
 │ ...                                                     │
 ├─────────────────────────────────────────────────────────┤
 │ Dictionary Database Table                               │
-│  ├─ Count (uint64_t)                                    │
-│  └─ [Offset, Name] pairs                               │
+│  └─ [Offset, Name] pairs                                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -68,16 +69,17 @@ A UDX file is organized as follows:
 
 ## Main Header
 
-The main header is the first 14 bytes of the file.
+The main header is the first 16 bytes of the file.
 
 | Offset | Size | Type   | Field                | Description                          |
 |--------|------|--------|----------------------|--------------------------------------|
 | 0      | 4    | char   | `magic`              | Magic bytes: "UDX\0"                 |
 | 4      | 1    | uint8  | `version_major`      | Major version number (1)             |
 | 5      | 1    | uint8  | `version_minor`      | Minor version number (0)             |
-| 6      | 8    | uint64 | `db_table_offset`    | File offset of Dictionary DB Table   |
+| 6      | 2    | uint16 | `db_count`           | Number of databases (max 65535)      |
+| 8      | 8    | uint64 | `db_table_offset`    | File offset of Dictionary DB Table   |
 
-**Total Size:** 14 bytes
+**Total Size:** 16 bytes
 
 **C Structure:**
 ```c
@@ -85,6 +87,7 @@ typedef struct {
     char magic[4];           // "UDX\0"
     uint8_t version_major;   // 1
     uint8_t version_minor;   // 0
+    uint16_t db_count;       // number of databases
     uint64_t db_table_offset;
 } udx_header;
 ```
@@ -286,11 +289,10 @@ The dictionary database table is stored at the end of the file (offset specified
 
 | Offset | Size    | Type   | Field        | Description                          |
 |--------|---------|--------|--------------|--------------------------------------|
-| 0      | 8       | uint64 | `db_count`   | Number of databases                  |
-| 8      | 8×N     | uint64 | `offsets[]`  | File offsets of each DB header       |
-| 8+8N   | variable | char   | `names[]`    | Database names (null-terminated)     |
+| 0      | 8×N     | uint64 | `offsets[]`  | File offsets of each DB header       |
+| 8×N    | variable | char   | `names[]`    | Database names (null-terminated)     |
 
-**Total Size:** 8 + (8 × N) + sum of all name lengths + N
+**Total Size:** (8 × N) + sum of all name lengths + N
 
 Each name is a null-terminated UTF-8 string. Names are stored consecutively without padding.
 
@@ -395,11 +397,12 @@ The database header includes a CRC32 checksum for integrity checking.
 |-----------|-------------------|--------------------------------|
 | Chunk size | 65536 bytes     | Uncompressed per chunk        |
 | Data block | 65536 bytes     | Must fit in single chunk       |
-| Chunks per DB | 2^48        | ~281 TB theoretical maximum    |
+| Chunks per DB | 2^32        | ~256 TB theoretical maximum    |
 | Entries per DB | 2^32        | ~4.3 billion unique words      |
 | Items per DB | 2^32         | Total data items               |
 | Items per entry | 2^16      | Items for a single word        |
 | B+ tree height | 255         | Practical limit ~5-6           |
+| Databases per file | 65535    | uint16_t limit                  |
 
 ### Validation Constraints
 

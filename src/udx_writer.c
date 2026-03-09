@@ -392,6 +392,7 @@ udx_writer *udx_writer_open(const char *output_path) {
     memcpy(main_header.magic, UDX_MAGIC_PREFIX, 4);
     main_header.version_major = UDX_VERSION_MAJOR;
     main_header.version_minor = UDX_VERSION_MINOR;
+    main_header.db_count = 0;  // Will be updated at final end
     main_header.db_table_offset = 0;  // Will be updated at final end
 
     uint8_t header_buf[UDX_HEADER_SERIALIZED_SIZE];
@@ -417,8 +418,8 @@ udx_error_t udx_writer_close(udx_writer *writer) {
     }
 
     // Write db table at current position (end of file)
-    // Format: [count:u32] [(offset:u64, name: null-terminated string)] × count
-    uint32_t count = (uint32_t)writer->db_offsets.size;
+    // Format: [(offset:u64, name: null-terminated string)] × db_count
+    uint16_t db_count = writer->db_offsets.size;
 
     int64_t db_table_offset = udx_ftell(writer->file);
     if (db_table_offset < 0) {
@@ -426,12 +427,7 @@ udx_error_t udx_writer_close(udx_writer *writer) {
         goto cleanup;
     }
 
-    if (fwrite(&count, sizeof(uint32_t), 1, writer->file) != 1) {
-        result = UDX_ERR_IO;
-        goto cleanup;
-    }
-
-    for (uint32_t i = 0; i < count; i++) {
+    for (uint16_t i = 0; i < db_count; i++) {
         // Write offset
         if (fwrite(&writer->db_offsets.data[i], sizeof(uint64_t), 1, writer->file) != 1) {
             result = UDX_ERR_IO;
@@ -455,10 +451,19 @@ udx_error_t udx_writer_close(udx_writer *writer) {
         }
     }
 
-    // Back-patch main header's db_table_offset field
+    // Back-patch main header's db_count and db_table_offset fields
+    if (udx_fseek(writer->file, UDX_HEADER_DB_COUNT_POS, SEEK_SET) != 0) {
+        result = UDX_ERR_IO;
+        goto cleanup;
+    }
+
+    if (fwrite(&db_count, sizeof(uint16_t), 1, writer->file) != 1) {
+        result = UDX_ERR_IO;
+        goto cleanup;
+    }
+
     uint64_t db_table_offset_uint64 = (uint64_t)db_table_offset;
-    if (udx_fseek(writer->file, UDX_HEADER_DB_TABLE_OFFSET_POS, SEEK_SET) != 0 ||
-        fwrite(&db_table_offset_uint64, sizeof(uint64_t), 1, writer->file) != 1) {
+    if (fwrite(&db_table_offset_uint64, sizeof(uint64_t), 1, writer->file) != 1) {
         result = UDX_ERR_IO;
     }
 
@@ -496,6 +501,11 @@ udx_db_builder *udx_db_builder_create_with_metadata(udx_writer *writer,
     }
 
     if (writer->has_db_active) {
+        return NULL;
+    }
+
+    // Check db count limit (uint16_t in header)
+    if (writer->db_offsets.size >= UINT16_MAX) {
         return NULL;
     }
 
