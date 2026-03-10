@@ -23,6 +23,76 @@ libudx/
     └── udx_btree.h/c     # B-tree implementation (Joshua J Baker)
 ```
 
+### Module Architecture Diagram
+
+```mermaid
+%%{init: {"flowchart": {"diagramPadding": 150}}}%%
+graph TB
+    subgraph API["Public API Layer"]
+        Writer["udx_writer.h<br/>High-level Writer API"]
+        Reader["udx_reader.h<br/>High-level Reader API"]
+    end
+
+    subgraph Core["Core Modules"]
+        Chunk["udx_chunk.h/c<br/>Chunk Storage<br/>(Compression)"]
+        Words["udx_words.h/c<br/>Words Container<br/>(B-tree Wrapper)"]
+        Types["udx_types.h/c<br/>Core Data Types<br/>& Serialization"]
+    end
+
+    subgraph Util["Utility Modules"]
+        BTree["udx_btree.h/c<br/>B-tree Implementation<br/>(Joshua J Baker)"]
+        Helpers["udx_utils.h/c<br/>Utility Functions<br/>(String Folding, I/O)"]
+    end
+
+    %% Writer flow
+    Writer --> Words
+    Writer --> Chunk
+    Writer --> Types
+    Words --> BTree
+    Words --> Helpers
+    Chunk --> Helpers
+    Types --> Helpers
+
+    %% Reader flow
+    Reader --> Chunk
+    Reader --> Types
+    Chunk --> Helpers
+    Types --> Helpers
+
+    %% Styling
+    classDef apiStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef coreStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef utilStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+
+    class Writer,Reader apiStyle
+    class Chunk,Words,Types coreStyle
+    class BTree,Helpers utilStyle
+```
+
+### Write Flow
+
+```mermaid
+%%{init: {"flowchart": {"diagramPadding": 150}}}%%
+graph LR
+    A[udx_writer] --> B[udx_db_builder]
+    B --> C[udx_words]
+    C --> D[udx_btree]
+    B --> E[udx_chunk_writer]
+    E --> F[UDX File]
+    D --> F
+```
+
+### Read Flow
+
+```mermaid
+%%{init: {"flowchart": {"diagramPadding": 150}}}%%
+graph LR
+    A[UDX File] --> B[udx_reader]
+    B --> C[udx_db]
+    C --> D[udx_chunk_reader]
+    C --> E[B+ Tree Index]
+```
+
 ## Design Decisions
 
 ### Why B+ Trees?
